@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Hex Run Web v2</title>
+  <title>Hex Run Arcade v10</title>
   <style>
     body {
       margin: 0;
@@ -15,18 +15,84 @@
       display: block;
       margin: auto;
       background: black;
+      touch-action: none;
     }
+    #controls {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      background: black;
+      border: 2px solid cyan;
+      color: cyan;
+      font-size: 16px;
+      font-family: monospace;
+      padding: 10px 20px;
+      border-radius: 10px;
+      text-align: center;
+      user-select: none;
+      cursor: pointer;
+      box-shadow: 0 0 10px cyan;
+    }
+    .btn:active { background: cyan; color: black; }
+    #btnRestart { display: none; border-color: magenta; color: magenta; box-shadow: 0 0 10px magenta; }
+    #btnRestart:active { background: magenta; color: black; }
+    #startScreen {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: black; color: cyan;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      text-align: center; z-index: 10;
+    }
+    #startScreen h1 { font-size: 40px; text-shadow: 0 0 20px magenta, 0 0 10px cyan; }
+    #startScreen pre { color: cyan; text-shadow: 0 0 5px cyan; }
+    #btnStart {
+      margin-top: 20px; background: black; border: 2px solid magenta; color: magenta;
+      padding: 10px 30px; font-size: 20px; font-family: monospace; border-radius: 10px;
+      cursor: pointer; box-shadow: 0 0 10px magenta;
+    }
+    #btnStart:active { background: magenta; color: black; }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas" width="800" height="400"></canvas>
 
+  <!-- Arcade Start Screen -->
+  <div id="startScreen">
+    <h1>HEX RUN ARCADE</h1>
+    <pre>
+     /\_/\
+    ⚡=^.^=
+    </pre>
+    <button id="btnStart">▶ START</button>
+  </div>
+
+  <!-- Touch controls -->
+  <div id="controls">
+    <div class="btn" id="btnLeft">⬅️</div>
+    <div class="btn" id="btnJump">⤴️ JUMP</div>
+    <div class="btn" id="btnRight">➡️</div>
+    <div class="btn" id="btnPause">⏸️</div>
+    <div class="btn" id="btnRestart">🔄 Restart</div>
+  </div>
+
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
+    // 🔊 Load sounds
+    const jumpSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+    const scoreSound = new Audio("https://actions.google.com/sounds/v1/cartoon/slide_whistle_to_drum.ogg");
+    const crashSound = new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_drum_hit.ogg");
+    const bgMusic = new Audio("https://vgmsite.com/soundtracks/pokemon-gameboy-sound-collection/jhbtfxzdfp/101%20-%20Opening.mp3"); 
+    bgMusic.loop = true;
+    bgMusic.volume = 0.4;
+
     // Game state
-    let running = true;
+    let running = false;
     let paused = false;
     let speed = 4;
     let gravity = 0.6;
@@ -34,198 +100,173 @@
     let score = 0;
 
     // Player
-    const player = {
-      x: 100,
-      y: 300,
-      w: 20,
-      h: 20,
-      dy: 0,
-      jumping: false
-    };
+    const player = { x: 100, y: 300, w: 40, h: 30, dy: 0, jumping: false };
 
     // Obstacles & drones
     const obstacles = [];
     const drones = [];
 
-    function spawnObstacle() {
-      obstacles.push({
-        x: canvas.width,
-        y: 320,
-        w: 20,
-        h: 40
-      });
-    }
-
-    function spawnDrone() {
-      drones.push({
-        x: canvas.width,
-        y: 200 + Math.random() * 100 - 50,
-        w: 20,
-        h: 20
-      });
-    }
-
     // Background stars
     const stars = [];
-    for (let i = 0; i < 100; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 2
-      });
-    }
+    for (let i = 0; i < 100; i++) stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 2 });
 
-    // Input
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowUp" && !player.jumping && running && !paused) {
+    // Skyline
+    const skyline = [];
+    function generateSkyline() {
+      let x = 0;
+      while (x < canvas.width + 100) {
+        let w = 40 + Math.random() * 30;
+        let h = 80 + Math.random() * 120;
+        skyline.push({ x, w, h });
+        x += w;
+      }
+    }
+    generateSkyline();
+
+    // Jump logic
+    function jump() {
+      if (!player.jumping && running && !paused) {
         player.dy = jumpStrength;
         player.jumping = true;
-      } else if (e.key === "p") {
-        paused = !paused;
-        if (!paused && running) gameLoop();
-      } else if (e.key === "ArrowRight") {
-        speed += 1;
-      } else if (e.key === "ArrowLeft") {
-        if (speed > 1) speed -= 1;
-      } else if (e.key === "r" && !running) {
-        resetGame();
+        jumpSound.currentTime = 0; jumpSound.play();
       }
+    }
+
+    // Buttons
+    document.getElementById("btnJump").addEventListener("click", jump);
+    document.getElementById("btnLeft").addEventListener("click", () => { if (speed > 1) speed -= 1; });
+    document.getElementById("btnRight").addEventListener("click", () => { speed += 1; });
+    document.getElementById("btnPause").addEventListener("click", () => { 
+      paused = !paused; 
+      if (paused) { bgMusic.pause(); }
+      else { bgMusic.play(); gameLoop(); } 
+    });
+    document.getElementById("btnRestart").addEventListener("click", () => { resetGame(); this.style.display="none"; bgMusic.play(); });
+    document.getElementById("btnStart").addEventListener("click", () => {
+      document.getElementById("startScreen").style.display = "none";
+      resetGame(); running = true; bgMusic.play(); gameLoop();
     });
 
+    // Reset
     function resetGame() {
-      obstacles.length = 0;
-      drones.length = 0;
-      score = 0;
-      speed = 4;
-      player.y = 300;
-      player.dy = 0;
-      player.jumping = false;
-      running = true;
-      paused = false;
-      gameLoop();
+      obstacles.length = 0; drones.length = 0; skyline.length = 0; generateSkyline();
+      score = 0; speed = 4; player.y = 300; player.dy = 0; player.jumping = false;
+      running = true; paused = false;
+      document.getElementById("btnRestart").style.display = "none";
     }
-                                                                                                                                                            function update() {
+
+    // Update
+    function update() {
       if (paused) return;
 
-      // Player physics
-      player.y += player.dy;
-      player.dy += gravity;
-
-      if (player.y > 300) {
-        player.y = 300;
-        player.dy = 0;
-        player.jumping = false;
-      }
+      // Physics
+      player.y += player.dy; player.dy += gravity;
+      if (player.y > 300) { player.y = 300; player.dy = 0; player.jumping = false; }
 
       // Obstacles
-      obstacles.forEach(o => o.x -= speed);                                                                                                                   if (obstacles.length && obstacles[0].x + obstacles[0].w < 0) {
-        obstacles.shift();
-        score++;
-      }                                                                                                                                                 
+      obstacles.forEach(o => o.x -= speed);
+      if (obstacles.length && obstacles[0].x + obstacles[0].w < 0) { obstacles.shift(); score++; scoreSound.currentTime = 0; scoreSound.play(); }
+
       // Drones
       drones.forEach(d => d.x -= speed);
-      if (drones.length && drones[0].x + drones[0].w < 0) {
-        drones.shift();
-        score++;
-      }
-      // Collision check
+      if (drones.length && drones[0].x + drones[0].w < 0) { drones.shift(); score++; scoreSound.currentTime = 0; scoreSound.play(); }
+
+      // Collision
       [...obstacles, ...drones].forEach(obj => {
         if (player.x < obj.x + obj.w &&
             player.x + player.w > obj.x &&
             player.y < obj.y + obj.h &&
             player.y + player.h > obj.y) {
           running = false;
+          crashSound.currentTime = 0; crashSound.play();
+          bgMusic.pause();
+          document.getElementById("btnRestart").style.display = "block";
         }
       });
 
       // Random spawns
-      if (Math.random() < 0.02) spawnObstacle();
-      if (Math.random() < 0.01) spawnDrone();
+      if (Math.random() < 0.02) obstacles.push({ x: canvas.width, y: 320, w: 20, h: 40 });
+      if (Math.random() < 0.01) drones.push({ x: canvas.width, y: 200 + Math.random()*100 - 50, w: 20, h: 20 });
 
-      // Dynamic difficulty
-      if (score % 10 === 0 && score !== 0 && speed < 12) {
-        speed += 0.02; // smooth ramp-up
+      // Skyline scroll
+      skyline.forEach(b => b.x -= speed * 0.5);
+      if (skyline.length && skyline[0].x + skyline[0].w < 0) {
+        let lastX = skyline[skyline.length - 1].x + skyline[skyline.length - 1].w;
+        let w = 40 + Math.random() * 30; let h = 80 + Math.random() * 120;
+        skyline.shift(); skyline.push({ x: lastX, w, h });
       }
+
+      // Difficulty
+      if (score % 10 === 0 && score !== 0 && speed < 12) speed += 0.02;
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Draw skyline
+    function drawSkyline() {
+      ctx.shadowBlur = 15; ctx.shadowColor = "magenta"; ctx.fillStyle = "#111";
+      skyline.forEach(b => { ctx.fillRect(b.x, canvas.height - b.h - 60, b.w, b.h); ctx.strokeStyle = "magenta"; ctx.strokeRect(b.x, canvas.height - b.h - 60, b.w, b.h); });
+      ctx.shadowBlur = 0;
+    }
 
-      // Background stars
-      ctx.fillStyle = "white";
-      stars.forEach(s => {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
-        s.x -= 0.2;
-        if (s.x < 0) s.x = canvas.width;
-      });
-
-      // Ground
-      ctx.fillStyle = "lime";
-      ctx.fillRect(0, 340, canvas.width, 5);
-
-      // Player with neon glow
+    // Draw cat
+    function drawCat(x, y) {
       ctx.shadowBlur = 15;
       ctx.shadowColor = "cyan";
       ctx.fillStyle = "cyan";
-      ctx.fillRect(player.x, player.y, player.w, player.h);
-      ctx.fillRect(player.x+5, player.y-5, 4, 5); // ear left
-      ctx.fillRect(player.x+11, player.y-5, 4, 5); // ear right
+      ctx.font = "16px monospace";
+      ctx.fillText(" /\\_/\\ ", x, y - 10);
+      ctx.fillText(" ⚡=^.^= ", x, y + 5);
       ctx.shadowBlur = 0;
+    }
+
+    // Draw
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Stars
+      ctx.fillStyle = "white";
+      stars.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); s.x -= 0.2; if (s.x < 0) s.x = canvas.width; });
+
+      // Skyline
+      drawSkyline();
+
+      // Ground
+      ctx.fillStyle = "lime"; ctx.fillRect(0, 340, canvas.width, 5);
+
+      // Cat
+      drawCat(player.x, player.y);
 
       // Obstacles
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "red";
-      ctx.fillStyle = "red";
-      obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
-      ctx.shadowBlur = 0;
+      ctx.shadowBlur = 10; ctx.shadowColor = "red"; ctx.fillStyle = "red";
+      obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h)); ctx.shadowBlur = 0;
 
       // Drones
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "orange";
-      ctx.fillStyle = "orange";
-      drones.forEach(d => {
-        ctx.beginPath();
-        ctx.arc(d.x + d.w / 2, d.y + d.h / 2, d.w / 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      ctx.shadowBlur = 10; ctx.shadowColor = "orange"; ctx.fillStyle = "orange";
+      drones.forEach(d => { ctx.beginPath(); ctx.arc(d.x+d.w/2, d.y+d.h/2, d.w/2, 0, Math.PI*2); ctx.fill(); });
       ctx.shadowBlur = 0;
 
-      // Score
-      ctx.fillStyle = "white";
-      ctx.font = "16px monospace";
-      ctx.fillText("Score: " + score, 10, 20);
-      ctx.fillText("Speed: " + speed.toFixed(1), 10, 40);
+      // HUD
+      ctx.fillStyle = "white"; ctx.font = "16px monospace";
+      ctx.fillText("Score: " + score, 10, 20); ctx.fillText("Speed: " + speed.toFixed(1), 10, 40);
 
-      // Game over screen
+      // Game Over
       if (!running) {
-        ctx.fillStyle = "white";
-        ctx.font = "24px monospace";
+        ctx.fillStyle = "white"; ctx.font = "24px monospace";
         ctx.fillText("💀 GAME OVER 💀", canvas.width/2 - 100, canvas.height/2);
         ctx.fillText("Final Score: " + score, canvas.width/2 - 90, canvas.height/2 + 40);
-        ctx.fillText("Press R to restart", canvas.width/2 - 100, canvas.height/2 + 80);
       }
 
-      // Pause overlay
+      // Pause
       if (paused && running) {
-        ctx.fillStyle = "white";
-        ctx.font = "20px monospace";
+        ctx.fillStyle = "white"; ctx.font = "20px monospace";
         ctx.fillText("⏸ PAUSED", canvas.width/2 - 50, canvas.height/2);
       }
     }
 
+    // Game loop
     function gameLoop() {
-      if (!running) {
-        draw();
-        return;
-      }
-      update();
-      draw();
-      requestAnimationFrame(gameLoop);
+      if (!running) { draw(); return; }
+      update(); draw(); requestAnimationFrame(gameLoop);
     }
-
-    gameLoop();
   </script>
 </body>
 </html>
