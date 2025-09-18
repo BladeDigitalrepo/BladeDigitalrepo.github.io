@@ -84,19 +84,7 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    // 🔊 Sounds
-    const jumpSound  = new Audio("sounds/jump.wav");
-    const scoreSound = new Audio("sounds/score.wav");
-    const crashSound = new Audio("sounds/crash.wav");
-    const bgMusic    = new Audio("sounds/bg_loop.mp3");
-    bgMusic.loop = true; bgMusic.volume = 0.4;
-
-    function playSound(a) {
-      a.currentTime = 0;
-      a.play().catch(()=>{});
-    }
-
-    // Game state
+      // Game state
     let running = false, paused = false;
     let speed = 4, let gravity = 0.5;         // a little lighter
 let jumpStrength = -14;    // stronger jump,   
@@ -152,7 +140,7 @@ let jumpStrength = -14;    // stronger jump,
         player.dy = jumpStrength;
         player.jumping = true;
         jumpsLeft--;
-        playSound(jumpSound);
+
       }
     }
     function setDuck(state) {
@@ -178,7 +166,7 @@ let jumpStrength = -14;    // stronger jump,
     // Touch control bindings
     document.getElementById("btnJump").addEventListener("click", jump);
     document.getElementById("btnPause").addEventListener("click", ()=>{
-      paused=!paused; if(paused) bgMusic.pause(); else playSound(bgMusic);
+      paused=!paused; 
       if(!paused&&running) requestAnimationFrame(gameLoop);
     });
     document.getElementById("btnLeft").addEventListener("click", ()=>{ if(speed>1) speed--; });
@@ -193,11 +181,11 @@ let jumpStrength = -14;    // stronger jump,
 
     document.getElementById("btnStart").addEventListener("click",()=>{
       document.getElementById("startScreen").style.display="none";
-      resetGame(); running=true; playSound(bgMusic); requestAnimationFrame(gameLoop);
+      resetGame(); running=true; requestAnimationFrame(gameLoop);
     });
     btnRestart.addEventListener("click",()=>doRestart());
 
-    function doRestart(){ resetGame(); btnRestart.style.display="none"; playSound(bgMusic); requestAnimationFrame(gameLoop); }
+    function doRestart(){ resetGame(); btnRestart.style.display="none"; requestAnimationFrame(gameLoop); }
 
     function resetGame(){
       obstacles.length=0; drones.length=0; droneCooldown=0; wallCooldown=0; generateSkyline();
@@ -216,9 +204,9 @@ let jumpStrength = -14;    // stronger jump,
       }
 
       obstacles.forEach(o=>o.x-=speed);
-      if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; playSound(scoreSound); }
+      if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; }
       drones.forEach(d=>d.x-=speed);
-      if(drones.length&&drones[0].x+20<0){ drones.shift(); score++; playSound(scoreSound); }
+      if(drones.length&&drones[0].x+20<0){ drones.shift(); score++; }
 
       const collides=(rx,ry,rw,rh)=>(player.x<rx+rw&&player.x+player.w>rx&&player.y<ry+rh&&player.y+player.h>ry);
       for(const o of obstacles){ if(collides(o.x,o.y,20,40)) gameOver(); }
@@ -237,7 +225,7 @@ let jumpStrength = -14;    // stronger jump,
 
     function gameOver(){
       if(!running)return;
-      running=false; playSound(crashSound); bgMusic.pause(); btnRestart.style.display="block";
+      running=false; bgMusic.pause(); btnRestart.style.display="block";
     }
 
     // Visuals
