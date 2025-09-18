@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Hex Run Arcade v13</title>
+  <title>Hex Run Arcade v14</title>
   <style>
     body {
       margin: 0;
@@ -49,7 +49,6 @@
       text-align: center; z-index: 10;
     }
     #startScreen h1 { font-size: 40px; text-shadow: 0 0 20px magenta, 0 0 10px cyan; }
-    #startScreen pre { color: cyan; text-shadow: 0 0 5px cyan; }
     #btnStart {
       margin-top: 20px; background: black; border: 2px solid magenta; color: magenta;
       padding: 10px 30px; font-size: 20px; font-family: monospace; border-radius: 10px;
@@ -64,19 +63,13 @@
   <!-- Start Screen -->
   <div id="startScreen">
     <h1>HEX RUN ARCADE</h1>
-    <pre>
-     /\_/\
-    ⚡=^.^=
-    </pre>
     <button id="btnStart">▶ START</button>
   </div>
 
   <!-- Touch Controls -->
   <div id="controls">
-    <div class="btn" id="btnLeft">⬅️</div>
     <div class="btn" id="btnJump">⤴️ JUMP</div>
     <div class="btn" id="btnDuck">⤵️ DUCK</div>
-    <div class="btn" id="btnRight">➡️</div>
     <div class="btn" id="btnPause">⏸️</div>
     <div class="btn" id="btnRestart">🔄 Restart</div>
   </div>
@@ -102,9 +95,27 @@
     let speed = 4, gravity = 0.6, jumpStrength = -12, score = 0;
     let jumpsLeft = 2;
 
-    // Player
-    const CAT_W = 64, CAT_H_STAND = 64, CAT_H_DUCK = 48, GROUND_Y = 300;
-    const player = { x: 100, y: GROUND_Y, dy: 0, jumping: false, ducking: false };
+    // Player object
+    const player = { x: 100, y: 300, w: 32, h: 32, dy: 0, jumping: false, ducking: false };
+
+    // Load sprite
+    const hexImg = new Image();
+    hexImg.src = "hex.png"; // must be in same folder
+
+    function drawHexWithAura() {
+      // Flame aura behind Hex
+      ctx.save();
+      ctx.shadowBlur = 25;
+      ctx.shadowColor = "#ff59d1";
+      ctx.fillStyle = "#ff59d1";
+      ctx.beginPath();
+      ctx.arc(player.x + player.w/2, player.y + player.h/2, 22, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // Hex sprite
+      ctx.drawImage(hexImg, player.x, player.y - 8, player.w, player.h);
+    }
 
     // Obstacles & drones
     const obstacles = [], drones = [];
@@ -127,35 +138,6 @@
       }
     }
     generateSkyline();
-
-    // Cyber Cat frames
-    const catRunFrames = [
-      ["   /\\_/\\ ", "⚡️《=^.^=)", "   /|_|\\ ", "   / | \\"],
-      ["   /\\_/\\ ", "⚡️《=^.^=)", "   /|_|\\ ", "   /   \\"]
-    ];
-    const catDuckFrame = ["   /\\_/\\ ", "⚡️《=^.^=)", "   /_/\\_\\ "];
-
-    let frameIndex = 0, frameCounter = 0;
-
-    function drawCat(x, y, ducking=false) {
-      ctx.shadowBlur = 15; ctx.shadowColor = "cyan"; ctx.fillStyle = "cyan"; ctx.font = "16px monospace";
-      let lines, yOffset = 0;
-      if (ducking) {
-        lines = catDuckFrame;
-        yOffset = CAT_H_STAND - CAT_H_DUCK;
-      } else {
-        frameCounter++; if (frameCounter % 10 === 0) frameIndex = (frameIndex + 1) % catRunFrames.length;
-        lines = catRunFrames[frameIndex];
-      }
-      for (let i=0;i<lines.length;i++) ctx.fillText(lines[i], x, y + yOffset + i*16);
-      ctx.shadowBlur = 0;
-    }
-
-    function getCatHitbox() {
-      const bottom = player.y + CAT_H_STAND;
-      const h = player.ducking ? CAT_H_DUCK : CAT_H_STAND;
-      return { x: player.x, y: bottom - h, w: CAT_W, h };
-    }
 
     // Input
     function jump() {
@@ -185,8 +167,6 @@
     });
 
     document.getElementById("btnJump").addEventListener("click", jump);
-    document.getElementById("btnLeft").addEventListener("click", ()=>{ if(speed>1) speed--; });
-    document.getElementById("btnRight").addEventListener("click", ()=>{ speed++; });
     document.getElementById("btnPause").addEventListener("click", ()=>{
       paused=!paused; if(paused) bgMusic.pause(); else playSound(bgMusic);
       if(!paused&&running) requestAnimationFrame(gameLoop);
@@ -209,26 +189,24 @@
 
     function resetGame(){
       obstacles.length=0; drones.length=0; droneCooldown=0; wallCooldown=0; generateSkyline();
-      score=0; speed=4; player.y=GROUND_Y; player.dy=0; player.jumping=false; player.ducking=false; jumpsLeft=2;
+      score=0; speed=4; player.y=300; player.dy=0; player.jumping=false; player.ducking=false; jumpsLeft=2;
       running=true; paused=false; btnRestart.style.display="none";
     }
 
     function update(){
       if(paused) return;
       player.y+=player.dy; player.dy+=gravity;
-      if(player.y>GROUND_Y){ player.y=GROUND_Y; player.dy=0; player.jumping=false; jumpsLeft=2; }
+      if(player.y>300){ player.y=300; player.dy=0; player.jumping=false; jumpsLeft=2; }
 
       obstacles.forEach(o=>o.x-=speed);
       if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; playSound(scoreSound); }
       drones.forEach(d=>d.x-=speed);
       if(drones.length&&drones[0].x+20<0){ drones.shift(); score++; playSound(scoreSound); }
 
-      const hb=getCatHitbox();
-      const collides=(rx,ry,rw,rh)=>(hb.x<rx+rw&&hb.x+hb.w>rx&&hb.y<ry+rh&&hb.y+hb.h>ry);
+      const collides=(rx,ry,rw,rh)=>(player.x<rx+rw&&player.x+player.w>rx&&player.y<ry+rh&&player.y+player.h>ry);
       for(const o of obstacles){ if(collides(o.x,o.y,20,40)) gameOver(); }
       for(const d of drones){ if(collides(d.x,d.y,20,20)) gameOver(); }
 
-      // spaced spawns
       if(wallCooldown<=0&&Math.random()<0.02){ obstacles.push({x:canvas.width,y:320}); wallCooldown=120; } else wallCooldown--;
       if(droneCooldown<=0&&Math.random()<0.02){ drones.push({x:canvas.width,y:200+Math.random()*100-50}); droneCooldown=180; } else droneCooldown--;
 
@@ -245,7 +223,7 @@
       running=false; playSound(crashSound); bgMusic.pause(); btnRestart.style.display="block";
     }
 
-    // Neon flame
+    // Neon flame background
     function drawFlame(){
       const flameX=canvas.width/2, flameY=canvas.height/2;
       ctx.save(); ctx.shadowBlur=40; ctx.shadowColor="magenta"; ctx.fillStyle="magenta"; ctx.font="60px monospace"; ctx.textAlign="center"; ctx.globalAlpha=0.15;
@@ -260,18 +238,44 @@
 
     function draw(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="white"; stars.forEach(s=>{ ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill(); s.x-=0.2; if(s.x<0) s.x=canvas.width; });
-      drawFlame(); drawSkyline();
+
+      ctx.fillStyle="white";
+      stars.forEach(s=>{
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fill();
+        s.x-=0.2; if(s.x<0) s.x=canvas.width;
+      });
+
+      drawFlame();
+      drawSkyline();
+
+      // Ground
       ctx.fillStyle="lime"; ctx.fillRect(0,340,canvas.width,5);
-      drawCat(player.x,player.y,player.ducking);
+
+      // Draw Hex
+      drawHexWithAura();
+
       ctx.shadowBlur=10; ctx.shadowColor="red"; ctx.fillStyle="red"; obstacles.forEach(o=>ctx.fillRect(o.x,o.y,20,40)); ctx.shadowBlur=0;
       ctx.shadowBlur=10; ctx.shadowColor="orange"; ctx.fillStyle="orange"; drones.forEach(d=>{ ctx.beginPath(); ctx.arc(d.x+10,d.y+10,10,0,Math.PI*2); ctx.fill(); }); ctx.shadowBlur=0;
+
       ctx.fillStyle="white"; ctx.font="16px monospace"; ctx.fillText("Score: "+score,10,20); ctx.fillText("Speed: "+speed.toFixed(1),10,40);
-      if(!running){ ctx.fillStyle="white"; ctx.font="24px monospace"; ctx.fillText("💀 GAME OVER 💀",canvas.width/2-100,canvas.height/2); ctx.fillText("Final Score: "+score,canvas.width/2-90,canvas.height/2+40); }
-      if(paused&&running){ ctx.fillStyle="white"; ctx.font="20px monospace"; ctx.fillText("⏸ PAUSED",canvas.width/2-50,canvas.height/2); }
+
+      if(!running){
+        ctx.fillStyle="white"; ctx.font="24px monospace";
+        ctx.fillText("💀 GAME OVER 💀",canvas.width/2-100,canvas.height/2);
+        ctx.fillText("Final Score: "+score,canvas.width/2-90,canvas.height/2+40);
+      }
+      if(paused&&running){
+        ctx.fillStyle="white"; ctx.font="20px monospace";
+        ctx.fillText("⏸ PAUSED",canvas.width/2-50,canvas.height/2);
+      }
     }
 
-    function gameLoop(){ if(!running){ draw(); return; } update(); draw(); requestAnimationFrame(gameLoop); }
+    function gameLoop(){
+      if(!running){ draw(); return; }
+      update(); draw(); requestAnimationFrame(gameLoop);
+    }
   </script>
 </body>
 </html>
