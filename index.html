@@ -195,7 +195,7 @@
 
     function update(){
       if(paused) return;
-      player.y+=player.dy; 
+      player.y+=player.dy;player.dy+=gravity;
       if (player.y >= 300) {
   player.y = 300;
   player.dy = 0;
