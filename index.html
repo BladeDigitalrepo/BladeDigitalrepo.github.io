@@ -98,7 +98,9 @@
 
     // Game state
     let running = false, paused = false;
-    let speed = 4, gravity = 0.6, jumpStrength = -12, score = 0;
+    let speed = 4, let gravity = 0.5;         // a little lighter
+let jumpStrength = -14;    // stronger jump,   
+    score = 0;
     let jumpsLeft = 2;
 
     // Player object
@@ -161,16 +163,16 @@
 
     document.addEventListener("keydown", e=>{
       const k=e.key.toLowerCase();
-      if(k==="arrowup"||k==="w") jump();
-      if(k==="arrowleft"||k==="a") { if(speed>1) speed--; }
-      if(k==="arrowright"||k==="d") speed++;
+      if(k==="arrowup") jump();
+      if(k==="arrowleft") { if(speed>1) speed--; }
+      if(k==="arrowright") speed++;
       if(k==="p") { paused=!paused; if(paused) bgMusic.pause(); else playSound(bgMusic); if(!paused&&running) requestAnimationFrame(gameLoop);}
-      if(k==="arrowdown"||k==="s") setDuck(true);
+      if(k==="arrowdown") setDuck(true);
       if(k==="r"&&!running) doRestart();
     });
     document.addEventListener("keyup", e=>{
       const k=e.key.toLowerCase();
-      if(k==="arrowdown"||k==="s") setDuck(false);
+      if(k==="arrowdown") setDuck(false);
     });
 
     // Touch control bindings
@@ -206,7 +208,12 @@
     function update(){
       if(paused) return;
       player.y+=player.dy; player.dy+=gravity;
-      if(player.y>=300){ player.y=300; player.dy=0; player.jumping=false; jumpsLeft=2; }
+      if (player.y >= 300) {
+  player.y = 300;
+  player.dy = 0;
+  player.jumping = false;
+  jumpsLeft = 2; // reset both jumps when landing
+      }
 
       obstacles.forEach(o=>o.x-=speed);
       if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; playSound(scoreSound); }
