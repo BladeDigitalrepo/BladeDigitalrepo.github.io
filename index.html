@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Hex Run Arcade v14</title>
+  <title>Hex Run Arcade v15</title>
   <style>
     body {
       margin: 0;
@@ -17,23 +17,27 @@
       background: black;
       touch-action: none;
     }
+    /* Control Panel */
     #controls {
       position: absolute;
-      top: 420px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      gap: 10px;
+      justify-content: space-between;
+      gap: 20px;
+      width: 90%;
+      max-width: 600px;
       z-index: 5;
     }
     .btn {
       background: black;
       border: 2px solid cyan;
       color: cyan;
-      font-size: 16px;
+      font-size: 18px;
       font-family: monospace;
-      padding: 10px 20px;
-      border-radius: 10px;
+      padding: 15px 25px;
+      border-radius: 12px;
       text-align: center;
       user-select: none;
       cursor: pointer;
@@ -68,8 +72,10 @@
 
   <!-- Touch Controls -->
   <div id="controls">
+    <div class="btn" id="btnLeft">⬅️</div>
     <div class="btn" id="btnJump">⤴️ JUMP</div>
     <div class="btn" id="btnDuck">⤵️ DUCK</div>
+    <div class="btn" id="btnRight">➡️</div>
     <div class="btn" id="btnPause">⏸️</div>
     <div class="btn" id="btnRestart">🔄 Restart</div>
   </div>
@@ -79,10 +85,12 @@
     const ctx = canvas.getContext("2d");
 
     // 🔊 Sounds
-    const jumpSound  = new Audio("https://freesound.org/data/previews/341/341695_6261196-lq.mp3"); // laser blip
-const scoreSound = new Audio("https://freesound.org/data/previews/146/146721_1648170-lq.mp3"); // synth coin
-const crashSound = new Audio("https://freesound.org/data/previews/401/401338_5121236-lq.mp3"); // explosion
-const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Komiku/Chiptune_-_Emotions/Komiku_-_Chiptune_-_Emotions_-_02_Space_Invader.mp3");
+    const jumpSound  = new Audio("sounds/jump.wav");
+    const scoreSound = new Audio("sounds/score.wav");
+    const crashSound = new Audio("sounds/crash.wav");
+    const bgMusic    = new Audio("sounds/bg_loop.mp3");
+    bgMusic.loop = true; bgMusic.volume = 0.4;
+
     function playSound(a) {
       a.currentTime = 0;
       a.play().catch(()=>{});
@@ -98,10 +106,10 @@ const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemus
 
     // Load sprite
     const hexImg = new Image();
-    hexImg.src = "hex.png"; // must be in same folder
+    hexImg.src = "hex.png";
 
     function drawHexWithAura() {
-      // Flame aura behind Hex
+      // Aura
       ctx.save();
       ctx.shadowBlur = 25;
       ctx.shadowColor = "#ff59d1";
@@ -110,8 +118,7 @@ const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemus
       ctx.arc(player.x + player.w/2, player.y + player.h/2, 22, 0, Math.PI*2);
       ctx.fill();
       ctx.restore();
-
-      // Hex sprite
+      // Sprite
       ctx.drawImage(hexImg, player.x, player.y - 8, player.w, player.h);
     }
 
@@ -140,8 +147,10 @@ const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemus
     // Input
     function jump() {
       if (jumpsLeft > 0 && running && !paused && !player.ducking) {
-        player.dy = jumpStrength; player.jumping = true;
-        jumpsLeft--; playSound(jumpSound);
+        player.dy = jumpStrength;
+        player.jumping = true;
+        jumpsLeft--;
+        playSound(jumpSound);
       }
     }
     function setDuck(state) {
@@ -164,11 +173,14 @@ const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemus
       if(k==="arrowdown"||k==="s") setDuck(false);
     });
 
+    // Touch control bindings
     document.getElementById("btnJump").addEventListener("click", jump);
     document.getElementById("btnPause").addEventListener("click", ()=>{
       paused=!paused; if(paused) bgMusic.pause(); else playSound(bgMusic);
       if(!paused&&running) requestAnimationFrame(gameLoop);
     });
+    document.getElementById("btnLeft").addEventListener("click", ()=>{ if(speed>1) speed--; });
+    document.getElementById("btnRight").addEventListener("click", ()=>{ speed++; });
 
     const btnRestart=document.getElementById("btnRestart");
     document.getElementById("btnDuck").addEventListener("mousedown",()=>setDuck(true));
@@ -194,7 +206,7 @@ const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemus
     function update(){
       if(paused) return;
       player.y+=player.dy; player.dy+=gravity;
-      if(player.y>300){ player.y=300; player.dy=0; player.jumping=false; jumpsLeft=2; }
+      if(player.y>=300){ player.y=300; player.dy=0; player.jumping=false; jumpsLeft=2; }
 
       obstacles.forEach(o=>o.x-=speed);
       if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; playSound(scoreSound); }
@@ -221,7 +233,7 @@ const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemus
       running=false; playSound(crashSound); bgMusic.pause(); btnRestart.style.display="block";
     }
 
-    // Neon flame background
+    // Visuals
     function drawFlame(){
       const flameX=canvas.width/2, flameY=canvas.height/2;
       ctx.save(); ctx.shadowBlur=40; ctx.shadowColor="magenta"; ctx.fillStyle="magenta"; ctx.font="60px monospace"; ctx.textAlign="center"; ctx.globalAlpha=0.15;
@@ -251,13 +263,22 @@ const bgMusic    = new Audio("https://files.freemusicarchive.org/storage-freemus
       // Ground
       ctx.fillStyle="lime"; ctx.fillRect(0,340,canvas.width,5);
 
-      // Draw Hex
+      // Hex
       drawHexWithAura();
 
-      ctx.shadowBlur=10; ctx.shadowColor="red"; ctx.fillStyle="red"; obstacles.forEach(o=>ctx.fillRect(o.x,o.y,20,40)); ctx.shadowBlur=0;
-      ctx.shadowBlur=10; ctx.shadowColor="orange"; ctx.fillStyle="orange"; drones.forEach(d=>{ ctx.beginPath(); ctx.arc(d.x+10,d.y+10,10,0,Math.PI*2); ctx.fill(); }); ctx.shadowBlur=0;
+      // Obstacles / drones
+      ctx.shadowBlur=10; ctx.shadowColor="red"; ctx.fillStyle="red";
+      obstacles.forEach(o=>ctx.fillRect(o.x,o.y,20,40));
+      ctx.shadowBlur=0;
 
-      ctx.fillStyle="white"; ctx.font="16px monospace"; ctx.fillText("Score: "+score,10,20); ctx.fillText("Speed: "+speed.toFixed(1),10,40);
+      ctx.shadowBlur=10; ctx.shadowColor="orange"; ctx.fillStyle="orange";
+      drones.forEach(d=>{ ctx.beginPath(); ctx.arc(d.x+10,d.y+10,10,0,Math.PI*2); ctx.fill(); });
+      ctx.shadowBlur=0;
+
+      // Score
+      ctx.fillStyle="white"; ctx.font="16px monospace";
+      ctx.fillText("Score: "+score,10,20);
+      ctx.fillText("Speed: "+speed.toFixed(1),10,40);
 
       if(!running){
         ctx.fillStyle="white"; ctx.font="24px monospace";
