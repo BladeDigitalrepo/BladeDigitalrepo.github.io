@@ -113,14 +113,12 @@
 
     function drawHexWithAura() {
       ctx.save();
-      ctx.shadowBlur = 23;
-      ctx.shadowColor = "#b02080"; //
-      bright neon pink      
-        ctx.fillStyle = "#ff59d1";
-      ctx.beginPath();
-      ctx.arc(player.x + player.w/2, player.y + player.h/2, 22, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
+ctx.shadowBlur = 15;
+ctx.shadowColor = "cyan";   // neon glow outline
+ctx.strokeStyle = "cyan";
+ctx.lineWidth = 3;
+ctx.strokeRect(player.x-2, player.y-10, player.w+4, player.h+4);
+ctx.restore();
       // Sprite or ducking
       if (player.ducking) {
         ctx.drawImage(hexImg, player.x, player.y + 10, player.w, player.h / 2);
