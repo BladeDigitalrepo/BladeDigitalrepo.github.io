@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Hex Run Arcade v16</title>
+  <title>Hex Run Arcade v17</title>
   <style>
     body {
       margin: 0;
@@ -67,8 +67,8 @@
   <!-- Start Screen -->
   <div id="startScreen">
     <h1>HEX RUN ARCADE</h1>
-    <!-- Hex preview -->
-    <canvas id="hexPreview" width="320" height="320"></canvas>
+    <!-- Bigger Hex preview -->
+    <canvas id="hexPreview" width="300" height="300"></canvas>
     <button id="btnStart">▶ START</button>
     <p style="color: cyan; margin-top: 15px; font-size: 14px;">
       ⬆ Jump&nbsp;&nbsp;⬇ Duck&nbsp;&nbsp;⬅ Slow&nbsp;&nbsp;➡ Speed
@@ -99,10 +99,20 @@
       setInterval(()=>{
         previewCtx.clearRect(0,0,hexPreview.width,hexPreview.height);
         let flicker = 0.2 + 0.3 * Math.sin(Date.now()/200);
+
+        // Glow aura
         previewCtx.save();
-        previewCtx.shadowBlur = 25;
+        previewCtx.shadowBlur = 30;
         previewCtx.shadowColor = `rgba(255, 0, 255, ${flicker})`;
-        previewCtx.drawImage(hexStartImg, 40, 30, 40, 60);
+
+        // Scale Hex 5×
+        const scale = 5;
+        const hexW = 32 * scale;
+        const hexH = 48 * scale;
+        const x = (hexPreview.width - hexW) / 2;
+        const y = (hexPreview.height - hexH) / 2;
+
+        previewCtx.drawImage(hexStartImg, x, y, hexW, hexH);
         previewCtx.restore();
       }, 60);
     };
@@ -110,8 +120,8 @@
     // Game state
     let running = false, paused = false;
     let speed = 4;
-    let gravity = 0.4;       // lighter pull
-    let jumpStrength = -14;  // stronger lift 
+    let gravity = 0.4;
+    let jumpStrength = -14;
     let score = 0;
     let jumpsLeft = 2;
 
