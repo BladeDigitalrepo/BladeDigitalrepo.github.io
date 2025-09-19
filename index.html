@@ -114,8 +114,9 @@
     function drawHexWithAura() {
       ctx.save();
       ctx.shadowBlur = 23;
-      ctx.shadowColor = "#ff59d1";
-      ctx.fillStyle = "rgba(255, 89, 209, 0.15)";
+      ctx.shadowColor = "#b02080"; //
+      bright neon pink      
+        ctx.fillStyle = "#ff59d1";
       ctx.beginPath();
       ctx.arc(player.x + player.w/2, player.y + player.h/2, 22, 0, Math.PI*2);
       ctx.fill();
