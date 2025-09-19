@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Hex Run Arcade v15 (Fixed)</title>
+  <title>Hex Run Arcade v16</title>
   <style>
     body {
       margin: 0;
@@ -67,7 +67,12 @@
   <!-- Start Screen -->
   <div id="startScreen">
     <h1>HEX RUN ARCADE</h1>
+    <!-- Hex preview -->
+    <canvas id="hexPreview" width="120" height="120"></canvas>
     <button id="btnStart">▶ START</button>
+    <p style="color: cyan; margin-top: 15px; font-size: 14px;">
+      ⬆ Jump&nbsp;&nbsp;⬇ Duck&nbsp;&nbsp;⬅ Slow&nbsp;&nbsp;➡ Speed
+    </p>
   </div>
 
   <!-- Touch Controls -->
@@ -84,17 +89,23 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    // 🔊 Sounds
-    const jumpSound  = new Audio("sounds/jump.wav");
-    const scoreSound = new Audio("sounds/score.wav");
-    const crashSound = new Audio("sounds/crash.wav");
-    const bgMusic    = new Audio("sounds/bg_loop.mp3");
-    bgMusic.loop = true; bgMusic.volume = 0.4;
+    // 🎨 Start screen preview
+    const hexPreview = document.getElementById("hexPreview");
+    const previewCtx = hexPreview.getContext("2d");
+    const hexStartImg = new Image();
+    hexStartImg.src = "hex.png";
 
-    function playSound(a) {
-      a.currentTime = 0;
-      a.play().catch(()=>{});
-    }
+    hexStartImg.onload = () => {
+      setInterval(()=>{
+        previewCtx.clearRect(0,0,hexPreview.width,hexPreview.height);
+        let flicker = 0.2 + 0.3 * Math.sin(Date.now()/200);
+        previewCtx.save();
+        previewCtx.shadowBlur = 25;
+        previewCtx.shadowColor = `rgba(255, 0, 255, ${flicker})`;
+        previewCtx.drawImage(hexStartImg, 40, 30, 40, 60);
+        previewCtx.restore();
+      }, 60);
+    };
 
     // Game state
     let running = false, paused = false;
@@ -113,13 +124,12 @@
 
     function drawHexWithAura() {
       ctx.save();
-ctx.shadowBlur = 15;
-ctx.shadowColor = "cyan";   // neon glow outline
-ctx.strokeStyle = "cyan";
-ctx.lineWidth = 3;
-ctx.strokeRect(player.x-2, player.y-10, player.w+4, player.h+4);
-ctx.restore();
-      // Sprite or ducking
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = "cyan";
+      ctx.strokeStyle = "cyan";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(player.x-2, player.y-10, player.w+4, player.h+4);
+      ctx.restore();
       if (player.ducking) {
         ctx.drawImage(hexImg, player.x, player.y + 10, player.w, player.h / 2);
       } else {
@@ -155,7 +165,6 @@ ctx.restore();
         player.dy = jumpStrength;
         player.jumping = true;
         jumpsLeft--;
-        playSound(jumpSound);
       }
     }
     function setDuck(state) {
@@ -169,19 +178,18 @@ ctx.restore();
       if(k==="arrowup") jump();
       if(k==="arrowleft") { if(speed>1) speed--; }
       if(k==="arrowright") { if(speed<20) speed++; }
-      if(k==="p") { paused=!paused; if(paused) bgMusic.pause(); else playSound(bgMusic); if(!paused&&running) requestAnimationFrame(gameLoop);}
+      if(k==="p") { paused=!paused; if(!paused&&running) requestAnimationFrame(gameLoop);}
       if(k==="arrowdown") setDuck(true);
       if(k==="r"&&!running) doRestart();
     });
     document.addEventListener("keyup", e=>{
-      const k=e.key.toLowerCase();
-      if(k==="arrowdown") setDuck(false);
+      if(e.key.toLowerCase()==="arrowdown") setDuck(false);
     });
 
-    // Touch control bindings
+    // Touch controls
     document.getElementById("btnJump").addEventListener("click", jump);
     document.getElementById("btnPause").addEventListener("click", ()=>{
-      paused=!paused; if(paused) bgMusic.pause(); else playSound(bgMusic);
+      paused=!paused;
       if(!paused&&running) requestAnimationFrame(gameLoop);
     });
     document.getElementById("btnLeft").addEventListener("click", ()=>{ if(speed>1) speed--; });
@@ -196,11 +204,11 @@ ctx.restore();
 
     document.getElementById("btnStart").addEventListener("click",()=>{
       document.getElementById("startScreen").style.display="none";
-      resetGame(); running=true; playSound(bgMusic); requestAnimationFrame(gameLoop);
+      resetGame(); running=true; requestAnimationFrame(gameLoop);
     });
     btnRestart.addEventListener("click",()=>doRestart());
 
-    function doRestart(){ resetGame(); btnRestart.style.display="none"; playSound(bgMusic); requestAnimationFrame(gameLoop); }
+    function doRestart(){ resetGame(); btnRestart.style.display="none"; requestAnimationFrame(gameLoop); }
 
     function resetGame(){
       obstacles.length=0; drones.length=0; droneCooldown=0; wallCooldown=0; generateSkyline();
@@ -217,11 +225,10 @@ ctx.restore();
         player.jumping = false;
         jumpsLeft = 2;
       }
-
       obstacles.forEach(o=>o.x-=speed);
-      if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; playSound(scoreSound); }
+      if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; }
       drones.forEach(d=>d.x-=speed);
-      if(drones.length&&drones[0].x+20<0){ drones.shift(); score++; playSound(scoreSound); }
+      if(drones.length&&drones[0].x+20<0){ drones.shift(); score++; }
 
       const collides=(rx,ry,rw,rh)=>(player.x<rx+rw&&player.x+player.w>rx&&player.y<ry+rh&&player.y+player.h>ry);
       for(const o of obstacles){ if(collides(o.x,o.y,20,40)) gameOver(); }
@@ -240,7 +247,8 @@ ctx.restore();
 
     function gameOver(){
       if(!running)return;
-      running=false; playSound(crashSound); bgMusic.pause(); btnRestart.style.display="block";
+      running=false;
+      btnRestart.style.display="block";
     }
 
     function drawFlame(){
@@ -269,13 +277,10 @@ ctx.restore();
       drawFlame();
       drawSkyline();
 
-      // Ground
       ctx.fillStyle="lime"; ctx.fillRect(0,340,canvas.width,5);
 
-      // Hex
       drawHexWithAura();
 
-      // Obstacles / drones
       ctx.shadowBlur=10; ctx.shadowColor="red"; ctx.fillStyle="red";
       obstacles.forEach(o=>ctx.fillRect(o.x,o.y,20,40));
       ctx.shadowBlur=0;
@@ -284,7 +289,6 @@ ctx.restore();
       drones.forEach(d=>{ ctx.beginPath(); ctx.arc(d.x+10,d.y+10,10,0,Math.PI*2); ctx.fill(); });
       ctx.shadowBlur=0;
 
-      // Score
       ctx.fillStyle="white"; ctx.font="16px monospace"; ctx.textAlign="left";
       ctx.fillText("Score: "+score,10,20);
       ctx.fillText("Speed: "+speed.toFixed(1),10,40);
