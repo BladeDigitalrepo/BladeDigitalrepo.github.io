@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Hex Run Arcade v17</title>
+  <title>Hex Run Arcade v16</title>
   <style>
     body {
       margin: 0;
@@ -67,12 +67,7 @@
   <!-- Start Screen -->
   <div id="startScreen">
     <h1>HEX RUN ARCADE</h1>
-    <!-- Bigger Hex preview -->
-    <canvas id="hexPreview" width="300" height="300"></canvas>
     <button id="btnStart">▶ START</button>
-    <p style="color: cyan; margin-top: 15px; font-size: 14px;">
-      ⬆ Jump&nbsp;&nbsp;⬇ Duck&nbsp;&nbsp;⬅ Slow&nbsp;&nbsp;➡ Speed
-    </p>
   </div>
 
   <!-- Touch Controls -->
@@ -89,44 +84,24 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    // 🎨 Start screen preview
-    const hexPreview = document.getElementById("hexPreview");
-    const previewCtx = hexPreview.getContext("2d");
-    const hexStartImg = new Image();
-    hexStartImg.src = "hex.png";
-
-    hexStartImg.onload = () => {
-      setInterval(()=>{
-        previewCtx.clearRect(0,0,hexPreview.width,hexPreview.height);
-        let flicker = 0.2 + 0.3 * Math.sin(Date.now()/200);
-
-        // Glow aura
-        previewCtx.save();
-        previewCtx.shadowBlur = 30;
-        previewCtx.shadowColor = `rgba(255, 0, 255, ${flicker})`;
-
-        // Scale Hex 5×
-        const scale = 5;
-        const hexW = 32 * scale;
-        const hexH = 48 * scale;
-        const x = (hexPreview.width - hexW) / 2;
-        const y = (hexPreview.height - hexH) / 2;
-
-        previewCtx.drawImage(hexStartImg, x, y, hexW, hexH);
-        previewCtx.restore();
-      }, 60);
-    };
-
     // Game state
     let running = false, paused = false;
     let speed = 4;
-    let gravity = 0.4;
-    let jumpStrength = -14;
+    let gravity = 0.4;       // lighter pull
+    let jumpStrength = -14;  // stronger lift
     let score = 0;
     let jumpsLeft = 2;
 
     // Player object
-    const player = { x: 100, y: 300, w: 32, h: 32, dy: 0, jumping: false, ducking: false };
+    const player = { 
+      x: 100, 
+      y: 280,          // slightly higher so big Hex sits on ground
+      w: 48,           // larger width
+      h: 48,           // larger height
+      dy: 0, 
+      jumping: false, 
+      ducking: false 
+    };
 
     // Load sprite
     const hexImg = new Image();
@@ -134,16 +109,22 @@
 
     function drawHexWithAura() {
       ctx.save();
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = "cyan";
-      ctx.strokeStyle = "cyan";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(player.x-2, player.y-10, player.w+4, player.h+4);
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = "cyan";  
+      ctx.globalAlpha = 0.8;
+
+      // Circle aura that scales with Hex size
+      ctx.beginPath();
+      ctx.arc(player.x + player.w/2, player.y + player.h/2, player.w/1.2, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(0, 255, 255, 0.25)";
+      ctx.fill();
       ctx.restore();
+
+      // Draw sprite (stand or duck)
       if (player.ducking) {
-        ctx.drawImage(hexImg, player.x, player.y + 10, player.w, player.h / 2);
+        ctx.drawImage(hexImg, player.x, player.y + player.h/2, player.w, player.h/2);
       } else {
-        ctx.drawImage(hexImg, player.x, player.y - 8, player.w, player.h);
+        ctx.drawImage(hexImg, player.x, player.y, player.w, player.h);
       }
     }
 
@@ -193,10 +174,11 @@
       if(k==="r"&&!running) doRestart();
     });
     document.addEventListener("keyup", e=>{
-      if(e.key.toLowerCase()==="arrowdown") setDuck(false);
+      const k=e.key.toLowerCase();
+      if(k==="arrowdown") setDuck(false);
     });
 
-    // Touch controls
+    // Touch control bindings
     document.getElementById("btnJump").addEventListener("click", jump);
     document.getElementById("btnPause").addEventListener("click", ()=>{
       paused=!paused;
@@ -222,19 +204,20 @@
 
     function resetGame(){
       obstacles.length=0; drones.length=0; droneCooldown=0; wallCooldown=0; generateSkyline();
-      score=0; speed=4; player.y=300; player.dy=0; player.jumping=false; player.ducking=false; jumpsLeft=2;
+      score=0; speed=4; player.y=280; player.dy=0; player.jumping=false; player.ducking=false; jumpsLeft=2;
       running=true; paused=false; btnRestart.style.display="none";
     }
 
     function update(){
       if(paused) return;
       player.y+=player.dy; player.dy+=gravity;
-      if (player.y >= 300) {
-        player.y = 300;
+      if (player.y >= 280) {
+        player.y = 280;
         player.dy = 0;
         player.jumping = false;
         jumpsLeft = 2;
       }
+
       obstacles.forEach(o=>o.x-=speed);
       if(obstacles.length&&obstacles[0].x+20<0){ obstacles.shift(); score++; }
       drones.forEach(d=>d.x-=speed);
@@ -257,8 +240,7 @@
 
     function gameOver(){
       if(!running)return;
-      running=false;
-      btnRestart.style.display="block";
+      running=false; btnRestart.style.display="block";
     }
 
     function drawFlame(){
@@ -287,10 +269,13 @@
       drawFlame();
       drawSkyline();
 
+      // Ground
       ctx.fillStyle="lime"; ctx.fillRect(0,340,canvas.width,5);
 
+      // Hex
       drawHexWithAura();
 
+      // Obstacles / drones
       ctx.shadowBlur=10; ctx.shadowColor="red"; ctx.fillStyle="red";
       obstacles.forEach(o=>ctx.fillRect(o.x,o.y,20,40));
       ctx.shadowBlur=0;
@@ -299,6 +284,7 @@
       drones.forEach(d=>{ ctx.beginPath(); ctx.arc(d.x+10,d.y+10,10,0,Math.PI*2); ctx.fill(); });
       ctx.shadowBlur=0;
 
+      // Score
       ctx.fillStyle="white"; ctx.font="16px monospace"; ctx.textAlign="left";
       ctx.fillText("Score: "+score,10,20);
       ctx.fillText("Speed: "+speed.toFixed(1),10,40);
